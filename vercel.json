@@ -1,6 +1,12 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "functions": {
+    "server.mjs": {
+      "includeFiles": "{index.html,src/**,data/catalog.json,data/catalog.sample.json}",
+      "excludeFiles": "{media/**,.env,.env.*,data/import-config.json,data/import-progress*.json,data/import-run.log,data/watch-progress.json,data/google-drive-token.json}"
+    }
+  },
   "headers": [
     {
       "source": "/data/catalog.json",

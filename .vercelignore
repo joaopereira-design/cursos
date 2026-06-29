@@ -3,6 +3,7 @@
 !.env.example
 node_modules/
 media/
+.vercel/
 data/import-config.json
 data/import-progress*.json
 data/import-run.log
