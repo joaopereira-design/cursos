@@ -126,7 +126,25 @@ npm.cmd run migrate:supabase
 
 Depois disso, o app carrega `/api/catalog` pelo Supabase. Se o banco estiver fora ou ainda sem tabela, ele cai automaticamente no `data/catalog.json` local.
 
+Cada pessoa usa um `owner_id` separado. Por padrao o app cria um dono anonimo no navegador. Para escolher um workspace fixo, abra a URL com `?owner=nome-da-pessoa`, por exemplo:
+
+```text
+https://cursos-peach-pi.vercel.app/?owner=joao
+```
+
+Esse dono separa cursos, aulas, progresso e token do Google Drive.
+
 Para producao na Vercel, configure pelo menos `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` como variaveis sensiveis do projeto.
+
+Para conectar Google Drive na Vercel, configure tambem:
+
+```env
+GOOGLE_DRIVE_CLIENT_ID=
+GOOGLE_DRIVE_CLIENT_SECRET=
+GOOGLE_DRIVE_REDIRECT_URI=https://cursos-peach-pi.vercel.app/api/drive/callback
+```
+
+No Google Cloud, adicione esse mesmo redirect URI no cliente OAuth.
 
 ## Deploy na Vercel
 

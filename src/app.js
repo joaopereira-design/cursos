@@ -28,6 +28,22 @@ function deviceId() {
   return id;
 }
 
+function ownerId() {
+  const key = "course-owner-id";
+  const urlOwner = new URLSearchParams(window.location.search).get("owner");
+  if (urlOwner) localStorage.setItem(key, urlOwner.trim());
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = `owner-${deviceId()}`;
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
+function ownerHeaders(extra = {}) {
+  return { "X-Owner-Id": ownerId(), ...extra };
+}
+
 const elements = {
   courseList: document.querySelector("#courseList"),
   toggleImportPanel: document.querySelector("#toggleImportPanel"),
@@ -83,7 +99,7 @@ const elements = {
 async function loadCatalog({ preserveSelection = true } = {}) {
   const previousCourseId = preserveSelection ? state.courseId : localStorage.getItem("selected-course-id");
   const previousLessonId = preserveSelection ? state.lessonId : localStorage.getItem("selected-lesson-id");
-  const response = await fetch("/api/catalog", { cache: "no-store" });
+  const response = await fetch("/api/catalog", { cache: "no-store", headers: ownerHeaders() });
   if (!response.ok) throw new Error("Catalogo nao encontrado");
   const catalog = await response.json();
   state.catalog = catalog.courses || [];
@@ -141,7 +157,7 @@ function readImportForm() {
 }
 
 async function loadDriveStatus() {
-  const response = await fetch("/api/drive/status", { cache: "no-store" });
+  const response = await fetch("/api/drive/status", { cache: "no-store", headers: ownerHeaders() });
   if (!response.ok) return;
   const status = await response.json();
   if (!status.configured) {
@@ -157,7 +173,7 @@ async function loadDriveStatus() {
 }
 
 async function connectDrive() {
-  const response = await fetch("/api/drive/auth-url", { cache: "no-store" });
+  const response = await fetch("/api/drive/auth-url", { cache: "no-store", headers: ownerHeaders() });
   const data = await response.json();
   if (!response.ok || !data.url) throw new Error(data.message || "Nao consegui gerar o link do Drive.");
   window.open(data.url, "_blank", "noopener,noreferrer");
@@ -227,7 +243,7 @@ function saveProgress() {
   localStorage.setItem("course-progress", JSON.stringify(state.progress));
   fetch("/api/watch-progress", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Device-Id": deviceId() },
+    headers: ownerHeaders({ "Content-Type": "application/json", "X-Device-Id": deviceId() }),
     body: JSON.stringify(state.progress)
   }).catch(() => {});
 }
@@ -235,7 +251,7 @@ function saveProgress() {
 async function loadWatchProgress() {
   const response = await fetch("/api/watch-progress", {
     cache: "no-store",
-    headers: { "X-Device-Id": deviceId() }
+    headers: ownerHeaders({ "X-Device-Id": deviceId() })
   });
   if (!response.ok) return;
   const progress = await response.json();

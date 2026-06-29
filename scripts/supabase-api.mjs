@@ -48,9 +48,16 @@ async function request(path, { method = "GET", body, query, prefer, service = tr
   return text ? JSON.parse(text) : null;
 }
 
-function courseRow(course, position = 0) {
+const defaultOwnerId = process.env.DEFAULT_OWNER_ID || "local-owner";
+
+export function normalizeOwnerId(ownerId = defaultOwnerId) {
+  return String(ownerId || defaultOwnerId).trim() || defaultOwnerId;
+}
+
+function courseRow(course, position = 0, ownerId = defaultOwnerId) {
   const { lessons, importedAt, imported_at, ...metadata } = course;
   return {
+    owner_id: normalizeOwnerId(ownerId),
     id: String(course.id),
     title: String(course.title || course.id),
     instructor: course.instructor || "",
@@ -62,7 +69,7 @@ function courseRow(course, position = 0) {
   };
 }
 
-function lessonRow(courseId, lesson, position = 0) {
+function lessonRow(courseId, lesson, position = 0, ownerId = defaultOwnerId) {
   const {
     id,
     type,
@@ -88,6 +95,7 @@ function lessonRow(courseId, lesson, position = 0) {
   } = lesson;
 
   return {
+    owner_id: normalizeOwnerId(ownerId),
     id: String(id),
     course_id: String(courseId),
     type: type || "video",
@@ -143,10 +151,11 @@ function rowToCourse(row, lessons) {
   };
 }
 
-export async function readCatalogFromSupabase() {
+export async function readCatalogFromSupabase(ownerId = defaultOwnerId) {
+  const owner = normalizeOwnerId(ownerId);
   const [courseRows, lessonRows] = await Promise.all([
-    request("courses", { query: { select: "*", order: "position.asc,title.asc" } }),
-    request("lessons", { query: { select: "*", order: "position.asc" } })
+    request("courses", { query: { select: "*", owner_id: `eq.${owner}`, order: "position.asc,title.asc" } }),
+    request("lessons", { query: { select: "*", owner_id: `eq.${owner}`, order: "position.asc" } })
   ]);
 
   const lessonsByCourse = new Map();
@@ -161,19 +170,20 @@ export async function readCatalogFromSupabase() {
   };
 }
 
-export async function writeCatalogToSupabase(catalog) {
+export async function writeCatalogToSupabase(catalog, ownerId = defaultOwnerId) {
+  const owner = normalizeOwnerId(ownerId);
   const courses = Array.isArray(catalog?.courses) ? catalog.courses : [];
-  const courseRows = courses.map(courseRow);
+  const courseRows = courses.map((course, index) => courseRow(course, index, owner));
   const lessonRows = courses.flatMap((course) => {
     const lessons = Array.isArray(course.lessons) ? course.lessons : [];
-    return lessons.map((lesson, index) => lessonRow(course.id, lesson, index));
+    return lessons.map((lesson, index) => lessonRow(course.id, lesson, index, owner));
   });
 
   if (courseRows.length) {
     await request("courses", {
       method: "POST",
       body: courseRows,
-      query: { on_conflict: "id" },
+      query: { on_conflict: "owner_id,id" },
       prefer: "resolution=merge-duplicates"
     });
   }
@@ -182,7 +192,7 @@ export async function writeCatalogToSupabase(catalog) {
     await request("lessons", {
       method: "POST",
       body: lessonRows,
-      query: { on_conflict: "id" },
+      query: { on_conflict: "owner_id,id" },
       prefer: "resolution=merge-duplicates"
     });
   }
@@ -190,18 +200,21 @@ export async function writeCatalogToSupabase(catalog) {
   return { courses: courseRows.length, lessons: lessonRows.length };
 }
 
-export async function readWatchProgressFromSupabase(deviceId) {
+export async function readWatchProgressFromSupabase(ownerId, deviceId) {
   if (!deviceId) return {};
+  const owner = normalizeOwnerId(ownerId);
   const rows = await request("watch_progress", {
-    query: { select: "*", device_id: `eq.${deviceId}` }
+    query: { select: "*", owner_id: `eq.${owner}`, device_id: `eq.${deviceId}` }
   });
 
   return Object.fromEntries((rows || []).filter((row) => row.done).map((row) => [row.lesson_id, row.completed_at || row.updated_at]));
 }
 
-export async function writeWatchProgressToSupabase(deviceId, progress) {
+export async function writeWatchProgressToSupabase(ownerId, deviceId, progress) {
   if (!deviceId || !progress || typeof progress !== "object") return { progress: 0 };
+  const owner = normalizeOwnerId(ownerId);
   const rows = Object.entries(progress).map(([lessonId, completedAt]) => ({
+    owner_id: owner,
     device_id: deviceId,
     lesson_id: lessonId,
     done: Boolean(completedAt),
@@ -213,24 +226,26 @@ export async function writeWatchProgressToSupabase(deviceId, progress) {
   await request("watch_progress", {
     method: "POST",
     body: rows,
-    query: { on_conflict: "device_id,lesson_id" },
+    query: { on_conflict: "owner_id,device_id,lesson_id" },
     prefer: "resolution=merge-duplicates"
   });
   return { progress: rows.length };
 }
 
-export async function saveSecretToSupabase(name, value) {
+export async function saveSecretToSupabase(name, value, ownerId = defaultOwnerId) {
+  const owner = normalizeOwnerId(ownerId);
   await request("app_secrets", {
     method: "POST",
-    body: [{ name, value, updated_at: new Date().toISOString() }],
-    query: { on_conflict: "name" },
+    body: [{ owner_id: owner, name, value, updated_at: new Date().toISOString() }],
+    query: { on_conflict: "owner_id,name" },
     prefer: "resolution=merge-duplicates"
   });
 }
 
-export async function readSecretFromSupabase(name) {
+export async function readSecretFromSupabase(name, ownerId = defaultOwnerId) {
+  const owner = normalizeOwnerId(ownerId);
   const rows = await request("app_secrets", {
-    query: { select: "value", name: `eq.${name}`, limit: "1" }
+    query: { select: "value", owner_id: `eq.${owner}`, name: `eq.${name}`, limit: "1" }
   });
   return rows?.[0]?.value || null;
 }

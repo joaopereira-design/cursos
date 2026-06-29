@@ -5,6 +5,7 @@ import { basename, extname, join, normalize, parse, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { authUrl, driveConfigured, driveTokenSaved, saveCodeToken } from "./scripts/google-drive.mjs";
 import {
+  normalizeOwnerId,
   readCatalogFromSupabase,
   readWatchProgressFromSupabase,
   supabaseConfigured,
@@ -107,6 +108,10 @@ function sendJson(res, data, status = 200) {
   res.end(JSON.stringify(data, null, 2));
 }
 
+function ownerIdFrom(req, url) {
+  return normalizeOwnerId(req.headers["x-owner-id"] || url.searchParams.get("ownerId") || process.env.DEFAULT_OWNER_ID);
+}
+
 async function tailLog(maxBytes = 12000) {
   try {
     const details = statSync(logPath);
@@ -119,10 +124,12 @@ async function tailLog(maxBytes = 12000) {
 }
 
 async function handleApi(req, res, url) {
+  const ownerId = ownerIdFrom(req, url);
+
   if (url.pathname === "/api/catalog" && req.method === "GET") {
     if (supabaseConfigured()) {
       try {
-        sendJson(res, await readCatalogFromSupabase());
+        sendJson(res, await readCatalogFromSupabase(ownerId));
         return true;
       } catch {
         // Fall back to the local catalog while Supabase is being prepared.
@@ -187,14 +194,14 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/drive/status" && req.method === "GET") {
     sendJson(res, {
       configured: driveConfigured(),
-      connected: driveConfigured() ? await driveTokenSaved() : false,
+      connected: driveConfigured() ? await driveTokenSaved(ownerId) : false,
       redirectUri: process.env.GOOGLE_DRIVE_REDIRECT_URI || "http://localhost:5173/api/drive/callback"
     });
     return true;
   }
 
   if (url.pathname === "/api/drive/auth-url" && req.method === "GET") {
-    sendJson(res, { url: authUrl() });
+    sendJson(res, { url: authUrl(ownerId) });
     return true;
   }
 
@@ -205,7 +212,7 @@ async function handleApi(req, res, url) {
       res.end("Codigo do Google Drive ausente.");
       return true;
     }
-    await saveCodeToken(code);
+    await saveCodeToken(code, normalizeOwnerId(url.searchParams.get("state") || ownerId));
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end("<h1>Google Drive conectado.</h1><p>Voce pode voltar para a plataforma.</p>");
     return true;
@@ -215,7 +222,7 @@ async function handleApi(req, res, url) {
     const deviceId = req.headers["x-device-id"] || url.searchParams.get("deviceId") || "";
     if (supabaseConfigured() && deviceId) {
       try {
-        sendJson(res, await readWatchProgressFromSupabase(String(deviceId)));
+        sendJson(res, await readWatchProgressFromSupabase(ownerId, String(deviceId)));
         return true;
       } catch {
         // Fall back to local progress.
@@ -230,7 +237,7 @@ async function handleApi(req, res, url) {
     const deviceId = req.headers["x-device-id"] || "";
     if (supabaseConfigured() && deviceId) {
       try {
-        sendJson(res, { ok: true, ...(await writeWatchProgressToSupabase(String(deviceId), body)) });
+        sendJson(res, { ok: true, ...(await writeWatchProgressToSupabase(ownerId, String(deviceId), body)) });
         return true;
       } catch {
         // Also keep the local copy if Supabase is temporarily unavailable.

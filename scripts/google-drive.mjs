@@ -24,10 +24,10 @@ export function driveConfigured() {
   return Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID && process.env.GOOGLE_DRIVE_CLIENT_SECRET);
 }
 
-export async function driveTokenSaved() {
+export async function driveTokenSaved(ownerId) {
   if (supabaseConfigured()) {
     try {
-      const token = await readSecretFromSupabase("google_drive_token");
+      const token = await readSecretFromSupabase("google_drive_token", ownerId);
       if (token?.refresh_token || token?.access_token) return true;
     } catch {
       // Fall back to the local token file.
@@ -42,13 +42,13 @@ export async function driveTokenSaved() {
   }
 }
 
-export async function driveClient() {
+export async function driveClient(ownerId) {
   const { clientId, clientSecret, redirectUri } = credentials();
   const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
   try {
     const token = supabaseConfigured()
-      ? await readSecretFromSupabase("google_drive_token").catch(() => null)
+      ? await readSecretFromSupabase("google_drive_token", ownerId).catch(() => null)
       : null;
     auth.setCredentials(token || JSON.parse(await readFile(tokenPath, "utf8")));
   } catch {
@@ -58,24 +58,25 @@ export async function driveClient() {
   return google.drive({ version: "v3", auth });
 }
 
-export function authUrl() {
+export function authUrl(ownerId) {
   const { clientId, clientSecret, redirectUri } = credentials();
   const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   return auth.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: scopes
+    scope: scopes,
+    state: ownerId || "local-owner"
   });
 }
 
-export async function saveCodeToken(code) {
+export async function saveCodeToken(code, ownerId) {
   const { clientId, clientSecret, redirectUri } = credentials();
   const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   const { tokens } = await auth.getToken(code);
   await mkdir(dirname(tokenPath), { recursive: true });
   await writeFile(tokenPath, `${JSON.stringify(tokens, null, 2)}\n`, "utf8");
   if (supabaseConfigured()) {
-    await saveSecretToSupabase("google_drive_token", tokens).catch(() => {});
+    await saveSecretToSupabase("google_drive_token", tokens, ownerId).catch(() => {});
   }
   return tokens;
 }
