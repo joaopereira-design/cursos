@@ -102,6 +102,32 @@ GOOGLE_DRIVE_REDIRECT_URI=http://localhost:5173/api/drive/callback
 
 Quando uma aula vai para o Drive, o catalogo salva `driveFileId`, `driveWebViewLink` e `drivePreviewUrl`. A plataforma usa o preview embutido do Drive para tocar o video dentro do sistema.
 
+## Supabase
+
+O Supabase pode guardar o catalogo, progresso dos usuarios e o token do Google Drive usado pelo servidor.
+
+1. No painel da Supabase, abra **SQL Editor**.
+2. Rode o arquivo `supabase/schema.sql`.
+3. Configure no `.env`:
+
+```env
+SUPABASE_PROJECT_ID=
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+4. Migre os dados locais:
+
+```powershell
+npm.cmd run migrate:supabase
+```
+
+Depois disso, o app carrega `/api/catalog` pelo Supabase. Se o banco estiver fora ou ainda sem tabela, ele cai automaticamente no `data/catalog.json` local.
+
+Para producao na Vercel, configure pelo menos `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` como variaveis sensiveis do projeto.
+
 ## Deploy na Vercel
 
 O deploy na Vercel nao envia `media/telegram`, `.env`, tokens, logs ou progresso local. A Vercel fica como visualizador web do catalogo.

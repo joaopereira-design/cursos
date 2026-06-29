@@ -5,6 +5,7 @@ import input from "input";
 import { Api, TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions/index.js";
 import { driveClient, ensureFolder, uploadFileToDrive } from "./google-drive.mjs";
+import { supabaseConfigured, writeCatalogToSupabase } from "./supabase-api.mjs";
 
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH?.trim();
@@ -232,6 +233,11 @@ async function writeCatalog(course) {
   nextCourses.sort((a, b) => String(a.title).localeCompare(String(b.title), "pt-BR"));
 
   await writeFile("data/catalog.json", `${JSON.stringify({ courses: nextCourses }, null, 2)}\n`, "utf8");
+  if (supabaseConfigured()) {
+    await writeCatalogToSupabase({ courses: nextCourses }).catch((err) => {
+      console.warn(`Nao consegui sincronizar catalogo no Supabase: ${err.message}`);
+    });
+  }
 }
 
 function formatBytes(bytes = 0) {

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.mjs",
     "import:telegram": "node scripts/import-telegram.mjs",
+    "migrate:supabase": "node scripts/migrate-supabase.mjs",
     "progress": "node scripts/show-progress.mjs",
     "publish:prod": "node scripts/publish-prod.mjs"
   },

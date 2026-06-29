@@ -3,6 +3,7 @@ import { createReadStream } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { google } from "googleapis";
+import { readSecretFromSupabase, saveSecretToSupabase, supabaseConfigured } from "./supabase-api.mjs";
 
 const tokenPath = "data/google-drive-token.json";
 const scopes = ["https://www.googleapis.com/auth/drive.file"];
@@ -24,6 +25,15 @@ export function driveConfigured() {
 }
 
 export async function driveTokenSaved() {
+  if (supabaseConfigured()) {
+    try {
+      const token = await readSecretFromSupabase("google_drive_token");
+      if (token?.refresh_token || token?.access_token) return true;
+    } catch {
+      // Fall back to the local token file.
+    }
+  }
+
   try {
     const token = JSON.parse(await readFile(tokenPath, "utf8"));
     return Boolean(token.refresh_token || token.access_token);
@@ -37,8 +47,10 @@ export async function driveClient() {
   const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
   try {
-    const token = JSON.parse(await readFile(tokenPath, "utf8"));
-    auth.setCredentials(token);
+    const token = supabaseConfigured()
+      ? await readSecretFromSupabase("google_drive_token").catch(() => null)
+      : null;
+    auth.setCredentials(token || JSON.parse(await readFile(tokenPath, "utf8")));
   } catch {
     throw new Error("Google Drive ainda nao esta conectado.");
   }
@@ -62,6 +74,9 @@ export async function saveCodeToken(code) {
   const { tokens } = await auth.getToken(code);
   await mkdir(dirname(tokenPath), { recursive: true });
   await writeFile(tokenPath, `${JSON.stringify(tokens, null, 2)}\n`, "utf8");
+  if (supabaseConfigured()) {
+    await saveSecretToSupabase("google_drive_token", tokens).catch(() => {});
+  }
   return tokens;
 }
 

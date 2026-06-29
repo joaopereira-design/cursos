@@ -18,6 +18,16 @@ const state = {
   progress: JSON.parse(localStorage.getItem("course-progress") || "{}")
 };
 
+function deviceId() {
+  const key = "course-device-id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : `device-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
 const elements = {
   courseList: document.querySelector("#courseList"),
   toggleImportPanel: document.querySelector("#toggleImportPanel"),
@@ -73,7 +83,7 @@ const elements = {
 async function loadCatalog({ preserveSelection = true } = {}) {
   const previousCourseId = preserveSelection ? state.courseId : localStorage.getItem("selected-course-id");
   const previousLessonId = preserveSelection ? state.lessonId : localStorage.getItem("selected-lesson-id");
-  const response = await fetch("data/catalog.json", { cache: "no-store" });
+  const response = await fetch("/api/catalog", { cache: "no-store" });
   if (!response.ok) throw new Error("Catalogo nao encontrado");
   const catalog = await response.json();
   state.catalog = catalog.courses || [];
@@ -217,13 +227,16 @@ function saveProgress() {
   localStorage.setItem("course-progress", JSON.stringify(state.progress));
   fetch("/api/watch-progress", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Device-Id": deviceId() },
     body: JSON.stringify(state.progress)
   }).catch(() => {});
 }
 
 async function loadWatchProgress() {
-  const response = await fetch("/api/watch-progress", { cache: "no-store" });
+  const response = await fetch("/api/watch-progress", {
+    cache: "no-store",
+    headers: { "X-Device-Id": deviceId() }
+  });
   if (!response.ok) return;
   const progress = await response.json();
   if (progress && typeof progress === "object") {

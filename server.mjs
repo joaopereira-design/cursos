@@ -4,6 +4,12 @@ import { createServer } from "node:http";
 import { basename, extname, join, normalize, parse, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { authUrl, driveConfigured, driveTokenSaved, saveCodeToken } from "./scripts/google-drive.mjs";
+import {
+  readCatalogFromSupabase,
+  readWatchProgressFromSupabase,
+  supabaseConfigured,
+  writeWatchProgressToSupabase
+} from "./scripts/supabase-api.mjs";
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 5173);
@@ -113,6 +119,19 @@ async function tailLog(maxBytes = 12000) {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/catalog" && req.method === "GET") {
+    if (supabaseConfigured()) {
+      try {
+        sendJson(res, await readCatalogFromSupabase());
+        return true;
+      } catch {
+        // Fall back to the local catalog while Supabase is being prepared.
+      }
+    }
+    sendJson(res, await readJson(join(root, "data", "catalog.json"), { courses: [] }));
+    return true;
+  }
+
   if (url.pathname === "/api/import-config" && req.method === "GET") {
     const saved = await readJson(configPath, {});
     sendJson(res, { ...defaultImportConfig, ...saved });
@@ -193,12 +212,30 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/watch-progress" && req.method === "GET") {
+    const deviceId = req.headers["x-device-id"] || url.searchParams.get("deviceId") || "";
+    if (supabaseConfigured() && deviceId) {
+      try {
+        sendJson(res, await readWatchProgressFromSupabase(String(deviceId)));
+        return true;
+      } catch {
+        // Fall back to local progress.
+      }
+    }
     sendJson(res, await readJson(watchProgressPath, {}));
     return true;
   }
 
   if (url.pathname === "/api/watch-progress" && req.method === "POST") {
     const body = await readRequestJson(req);
+    const deviceId = req.headers["x-device-id"] || "";
+    if (supabaseConfigured() && deviceId) {
+      try {
+        sendJson(res, { ok: true, ...(await writeWatchProgressToSupabase(String(deviceId), body)) });
+        return true;
+      } catch {
+        // Also keep the local copy if Supabase is temporarily unavailable.
+      }
+    }
     await mkdir(join(root, "data"), { recursive: true });
     await writeFile(watchProgressPath, `${JSON.stringify(body || {}, null, 2)}\n`, "utf8");
     sendJson(res, { ok: true });
