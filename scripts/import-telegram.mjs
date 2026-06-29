@@ -21,6 +21,7 @@ const allowedExtensions = parseExtensions(importConfig.allowedExtensions);
 const storageMode = importConfig.storageMode || "local";
 const useDrive = storageMode === "drive" || storageMode === "both";
 const driveMakePublic = Boolean(importConfig.driveMakePublic);
+const ownerId = process.env.OWNER_ID || process.env.DEFAULT_OWNER_ID || "local-owner";
 
 if (!apiId || !apiHash || apiId === 123456 || apiHash === "coloque_seu_api_hash") {
   console.error(`
@@ -234,7 +235,7 @@ async function writeCatalog(course) {
 
   await writeFile("data/catalog.json", `${JSON.stringify({ courses: nextCourses }, null, 2)}\n`, "utf8");
   if (supabaseConfigured()) {
-    await writeCatalogToSupabase({ courses: nextCourses }).catch((err) => {
+    await writeCatalogToSupabase({ courses: nextCourses }, ownerId).catch((err) => {
       console.warn(`Nao consegui sincronizar catalogo no Supabase: ${err.message}`);
     });
   }
@@ -363,7 +364,8 @@ async function uploadLessonToDrive(job) {
       fileName,
       folderId: driveFolderId,
       mimeType: mimeTypeFromMessage(message),
-      makePublic: driveMakePublic
+      makePublic: driveMakePublic,
+      ownerId
     });
 
     lesson.driveFileId = uploaded.id;
@@ -483,7 +485,7 @@ await mkdir(courseMediaDir, { recursive: true });
 await mkdir(join(courseMediaDir, "materials"), { recursive: true });
 
 if (useDrive) {
-  const drive = await driveClient();
+  const drive = await driveClient(ownerId);
   driveFolderId = await ensureFolder(drive, course.title || course.id);
   console.log(`Google Drive ativo. Pasta do curso: ${driveFolderId}`);
 }

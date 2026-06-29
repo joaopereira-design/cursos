@@ -108,8 +108,34 @@ function sendJson(res, data, status = 200) {
   res.end(JSON.stringify(data, null, 2));
 }
 
-function ownerIdFrom(req, url) {
+function fallbackOwnerIdFrom(req, url) {
   return normalizeOwnerId(req.headers["x-owner-id"] || url.searchParams.get("ownerId") || process.env.DEFAULT_OWNER_ID);
+}
+
+async function ownerIdFrom(req, url) {
+  const auth = String(req.headers.authorization || "");
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const supabaseUrl = process.env.SUPABASE_URL || (process.env.SUPABASE_PROJECT_ID ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co` : "");
+  const publicKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+  if (token && supabaseUrl && publicKey) {
+    try {
+      const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/user`, {
+        headers: {
+          apikey: publicKey,
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const user = await response.json();
+        if (user?.id) return normalizeOwnerId(user.id);
+      }
+    } catch {
+      // Fall back below for local/offline use.
+    }
+  }
+
+  return fallbackOwnerIdFrom(req, url);
 }
 
 async function tailLog(maxBytes = 12000) {
@@ -124,7 +150,15 @@ async function tailLog(maxBytes = 12000) {
 }
 
 async function handleApi(req, res, url) {
-  const ownerId = ownerIdFrom(req, url);
+  const ownerId = await ownerIdFrom(req, url);
+
+  if (url.pathname === "/api/supabase/public-config" && req.method === "GET") {
+    sendJson(res, {
+      url: process.env.SUPABASE_URL || (process.env.SUPABASE_PROJECT_ID ? `https://${process.env.SUPABASE_PROJECT_ID}.supabase.co` : ""),
+      key: process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || ""
+    });
+    return true;
+  }
 
   if (url.pathname === "/api/catalog" && req.method === "GET") {
     if (supabaseConfigured()) {
@@ -178,7 +212,7 @@ async function handleApi(req, res, url) {
     const logFd = openSync(logPath, "a");
     importProcess = spawn(process.execPath, ["scripts/import-telegram.mjs"], {
       cwd: root,
-      env: process.env,
+      env: { ...process.env, OWNER_ID: ownerId },
       windowsHide: true,
       stdio: ["ignore", logFd, logFd]
     });

@@ -15,7 +15,11 @@ const state = {
   isSeeking: false,
   lastPositionSaveSecond: -1,
   controlsHideTimer: null,
-  progress: JSON.parse(localStorage.getItem("course-progress") || "{}")
+  progress: JSON.parse(localStorage.getItem("course-progress") || "{}"),
+  supabase: null,
+  authReady: false,
+  user: null,
+  session: null
 };
 
 function deviceId() {
@@ -32,6 +36,10 @@ function ownerId() {
   const key = "course-owner-id";
   const urlOwner = new URLSearchParams(window.location.search).get("owner");
   if (urlOwner) localStorage.setItem(key, urlOwner.trim());
+  if (state.user?.id) {
+    localStorage.setItem(key, state.user.id);
+    return state.user.id;
+  }
   let id = localStorage.getItem(key);
   if (!id) {
     id = `owner-${deviceId()}`;
@@ -41,7 +49,11 @@ function ownerId() {
 }
 
 function ownerHeaders(extra = {}) {
-  return { "X-Owner-Id": ownerId(), ...extra };
+  return {
+    "X-Owner-Id": ownerId(),
+    ...(state.session?.access_token ? { Authorization: `Bearer ${state.session.access_token}` } : {}),
+    ...extra
+  };
 }
 
 const elements = {
@@ -93,10 +105,89 @@ const elements = {
   driveStatus: document.querySelector("#driveStatus"),
   saveImportConfig: document.querySelector("#saveImportConfig"),
   startImport: document.querySelector("#startImport"),
-  importStatus: document.querySelector("#importStatus")
+  importStatus: document.querySelector("#importStatus"),
+  authScreen: document.querySelector("#authScreen"),
+  authForm: document.querySelector("#authForm"),
+  authEmail: document.querySelector("#authEmail"),
+  authPassword: document.querySelector("#authPassword"),
+  signupButton: document.querySelector("#signupButton"),
+  logoutButton: document.querySelector("#logoutButton"),
+  accountLabel: document.querySelector("#accountLabel"),
+  authMessage: document.querySelector("#authMessage")
 };
 
+function renderAuth() {
+  const isLogged = Boolean(state.user);
+  document.body.classList.toggle("auth-required", state.authReady && !isLogged);
+  elements.authScreen.hidden = !state.authReady || isLogged;
+  elements.logoutButton.hidden = !isLogged;
+  elements.accountLabel.textContent = isLogged ? state.user.email || "Conta conectada" : "Visitante";
+}
+
+async function initAuth() {
+  const response = await fetch("/api/supabase/public-config", { cache: "no-store" });
+  const config = response.ok ? await response.json() : {};
+  if (!config.url || !config.key || !window.createSupabaseClient) {
+    state.authReady = true;
+    renderAuth();
+    return;
+  }
+
+  state.supabase = window.createSupabaseClient(config.url, config.key);
+  const { data } = await state.supabase.auth.getSession();
+  state.session = data.session || null;
+  state.user = data.session?.user || null;
+  state.authReady = true;
+  renderAuth();
+
+  state.supabase.auth.onAuthStateChange((_event, session) => {
+    state.session = session || null;
+    state.user = session?.user || null;
+    if (state.user?.id) localStorage.setItem("course-owner-id", state.user.id);
+    renderAuth();
+    loadWatchProgress().then(() => loadCatalog({ preserveSelection: true })).catch(() => {});
+    loadDriveStatus().catch(() => {});
+  });
+}
+
+async function signIn() {
+  if (!state.supabase) throw new Error("Supabase Auth nao esta configurado.");
+  const email = elements.authEmail.value.trim();
+  const password = elements.authPassword.value;
+  const { error } = await state.supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  elements.authMessage.textContent = "Login realizado.";
+}
+
+async function signUp() {
+  if (!state.supabase) throw new Error("Supabase Auth nao esta configurado.");
+  const email = elements.authEmail.value.trim();
+  const password = elements.authPassword.value;
+  const { data, error } = await state.supabase.auth.signUp({ email, password });
+  if (error) throw error;
+  elements.authMessage.textContent = data.session
+    ? "Conta criada e conectada."
+    : "Conta criada. Confira seu email se a confirmacao estiver ativa.";
+}
+
+async function signOut() {
+  if (!state.supabase) return;
+  await state.supabase.auth.signOut();
+  state.session = null;
+  state.user = null;
+  state.catalog = [];
+  state.progress = {};
+  localStorage.removeItem("course-progress");
+  renderAuth();
+  render();
+}
+
 async function loadCatalog({ preserveSelection = true } = {}) {
+  if (state.authReady && state.supabase && !state.user) {
+    state.catalog = [];
+    render();
+    return;
+  }
   const previousCourseId = preserveSelection ? state.courseId : localStorage.getItem("selected-course-id");
   const previousLessonId = preserveSelection ? state.lessonId : localStorage.getItem("selected-lesson-id");
   const response = await fetch("/api/catalog", { cache: "no-store", headers: ownerHeaders() });
@@ -249,6 +340,7 @@ function saveProgress() {
 }
 
 async function loadWatchProgress() {
+  if (state.authReady && state.supabase && !state.user) return;
   const response = await fetch("/api/watch-progress", {
     cache: "no-store",
     headers: ownerHeaders({ "X-Device-Id": deviceId() })
@@ -832,13 +924,38 @@ elements.startImport.addEventListener("click", () => {
   });
 });
 
+elements.authForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  elements.authMessage.textContent = "Entrando...";
+  signIn().catch((err) => {
+    elements.authMessage.textContent = err.message;
+  });
+});
+
+elements.signupButton.addEventListener("click", () => {
+  elements.authMessage.textContent = "Criando conta...";
+  signUp().catch((err) => {
+    elements.authMessage.textContent = err.message;
+  });
+});
+
+elements.logoutButton.addEventListener("click", () => {
+  signOut().catch(() => {});
+});
+
 setInterval(() => {
   pollImportStatus().catch(() => {});
 }, 5000);
 
-applyChromeState();
+async function boot() {
+  applyChromeState();
+  await initAuth().catch((err) => {
+    state.authReady = true;
+    elements.authMessage.textContent = err.message;
+    renderAuth();
+  });
 
-loadWatchProgress().then(() => render()).catch(() => {});
+  await loadWatchProgress().then(() => render()).catch(() => {});
 
 loadImportConfig().catch(() => {
   elements.importStatus.textContent = "Servidor precisa ser reiniciado para habilitar o painel de importação.";
@@ -852,3 +969,6 @@ loadCatalog().catch(() => {
   elements.courseTitle.textContent = "Nao consegui carregar o catalogo";
   elements.lessonTitle.textContent = "Verifique data/catalog.json";
 });
+}
+
+boot();

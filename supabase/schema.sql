@@ -142,7 +142,8 @@ with check (
   and device_id = current_setting('request.headers', true)::json->>'x-device-id'
 );
 
-revoke all on public.app_secrets from anon, authenticated;
 grant usage on schema public to anon, authenticated;
-grant select on public.courses, public.lessons to anon, authenticated;
-grant select, insert, update on public.watch_progress to anon, authenticated;
+revoke all on public.courses from anon, authenticated;
+revoke all on public.lessons from anon, authenticated;
+revoke all on public.watch_progress from anon, authenticated;
+revoke all on public.app_secrets from anon, authenticated;

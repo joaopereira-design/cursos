@@ -21,6 +21,11 @@
           <button id="toggleTheme" class="secondary-button" type="button">Modo escuro</button>
         </div>
 
+        <div class="account-box">
+          <span id="accountLabel">Visitante</span>
+          <button id="logoutButton" class="secondary-button" type="button" hidden>Sair</button>
+        </div>
+
         <label class="search">
           <span>Buscar</span>
           <input id="searchInput" type="search" placeholder="curso, aula ou professor" />
@@ -177,6 +182,32 @@
       </main>
     </div>
 
+    <section id="authScreen" class="auth-screen" hidden>
+      <form id="authForm" class="auth-card">
+        <div>
+          <p class="eyebrow">Acesso</p>
+          <h1>Entrar na plataforma</h1>
+        </div>
+        <label>
+          <span>Email</span>
+          <input id="authEmail" name="email" type="email" autocomplete="email" required />
+        </label>
+        <label>
+          <span>Senha</span>
+          <input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="6" required />
+        </label>
+        <div class="auth-actions">
+          <button id="loginButton" class="done-button" type="submit">Entrar</button>
+          <button id="signupButton" class="secondary-button" type="button">Criar conta</button>
+        </div>
+        <p id="authMessage" class="auth-message">Cada conta tem seus proprios cursos, progresso e Drive.</p>
+      </form>
+    </section>
+
+    <script type="module">
+      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+      window.createSupabaseClient = createClient;
+    </script>
     <script type="module" src="src/app.js"></script>
   </body>
 </html>

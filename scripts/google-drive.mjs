@@ -105,8 +105,8 @@ export async function ensureFolder(drive, name, parentId = process.env.GOOGLE_DR
   return created.data.id;
 }
 
-export async function uploadFileToDrive({ filePath, fileName, folderId, mimeType = "application/octet-stream", makePublic = false }) {
-  const drive = await driveClient();
+export async function uploadFileToDrive({ filePath, fileName, folderId, mimeType = "application/octet-stream", makePublic = false, ownerId }) {
+  const drive = await driveClient(ownerId);
   const response = await drive.files.create({
     requestBody: {
       name: fileName,

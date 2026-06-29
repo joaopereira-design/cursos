@@ -104,7 +104,7 @@ Quando uma aula vai para o Drive, o catalogo salva `driveFileId`, `driveWebViewL
 
 ## Supabase
 
-O Supabase pode guardar o catalogo, progresso dos usuarios e o token do Google Drive usado pelo servidor.
+O Supabase pode guardar usuarios, catalogo, progresso e o token do Google Drive usado pelo servidor.
 
 1. No painel da Supabase, abra **SQL Editor**.
 2. Rode o arquivo `supabase/schema.sql`.
@@ -126,15 +126,11 @@ npm.cmd run migrate:supabase
 
 Depois disso, o app carrega `/api/catalog` pelo Supabase. Se o banco estiver fora ou ainda sem tabela, ele cai automaticamente no `data/catalog.json` local.
 
-Cada pessoa usa um `owner_id` separado. Por padrao o app cria um dono anonimo no navegador. Para escolher um workspace fixo, abra a URL com `?owner=nome-da-pessoa`, por exemplo:
+Cada pessoa entra com email/senha pelo Supabase Auth. O sistema usa o `id` do usuario em `auth.users` como `owner_id`, entao cursos, aulas, progresso e token do Google Drive ficam separados por conta e acompanham a pessoa em qualquer computador.
 
-```text
-https://cursos-peach-pi.vercel.app/?owner=joao
-```
+Para producao na Vercel, configure pelo menos `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` como variaveis sensiveis do projeto.
 
-Esse dono separa cursos, aulas, progresso e token do Google Drive.
-
-Para producao na Vercel, configure pelo menos `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` como variaveis sensiveis do projeto.
+No painel da Supabase, em **Authentication**, confira se email/senha esta habilitado. Se a confirmacao por email estiver ativa, configure a URL do site para `https://cursos-peach-pi.vercel.app`.
 
 Para conectar Google Drive na Vercel, configure tambem:
 

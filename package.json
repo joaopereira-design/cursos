@@ -11,6 +11,7 @@
     "publish:prod": "node scripts/publish-prod.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
     "dotenv": "^16.4.5",
     "googleapis": "^173.0.0",
     "input": "^1.0.1",
