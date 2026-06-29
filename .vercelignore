@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+node_modules/
+media/
+data/import-config.json
+data/import-progress*.json
+data/import-run.log
+data/watch-progress.json
+data/google-drive-token.json
+.agents/
+.git/
+.git-cursos/
+.codex/
+server.out.log
+server.err.log

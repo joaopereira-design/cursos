@@ -1,0 +1,17 @@
+{
+  "name": "telegram-course-library",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "import:telegram": "node scripts/import-telegram.mjs",
+    "progress": "node scripts/show-progress.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "googleapis": "^173.0.0",
+    "input": "^1.0.1",
+    "telegram": "^2.26.22"
+  }
+}

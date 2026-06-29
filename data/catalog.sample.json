@@ -1,0 +1,33 @@
+{
+  "courses": [
+    {
+      "id": "nome-do-curso",
+      "title": "Nome do curso",
+      "instructor": "Professor ou canal",
+      "lessons": [
+        {
+          "id": "aula-001",
+          "type": "video",
+          "tag": "#F01",
+          "title": "Primeira aula",
+          "module": "00 - Comece Aqui",
+          "description": "Resumo da aula.",
+          "duration": "12 min",
+          "source": "Mensagem 123",
+          "video": "media/nome-do-curso/aula-001.mp4"
+        },
+        {
+          "id": "material-001",
+          "type": "material",
+          "tag": "#F41",
+          "title": "Materiais",
+          "module": "Materiais",
+          "description": "Arquivos complementares.",
+          "duration": "",
+          "source": "Mensagem 456",
+          "file": "media/nome-do-curso/material.pdf"
+        }
+      ]
+    }
+  ]
+}

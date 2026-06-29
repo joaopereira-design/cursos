@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minha Plataforma de Cursos</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">A</span>
+          <div>
+            <strong>Aulas</strong>
+            <span>Biblioteca pessoal</span>
+          </div>
+        </div>
+        <div class="sidebar-actions">
+          <button id="toggleImportPanel" class="secondary-button" type="button">Importação</button>
+          <button id="toggleTheme" class="secondary-button" type="button">Modo escuro</button>
+        </div>
+
+        <label class="search">
+          <span>Buscar</span>
+          <input id="searchInput" type="search" placeholder="curso, aula ou professor" />
+        </label>
+
+        <nav id="courseList" class="course-list" aria-label="Cursos"></nav>
+      </aside>
+
+      <main class="content">
+        <section class="topbar">
+          <div>
+            <p id="eyebrow" class="eyebrow">Curso</p>
+            <h1 id="courseTitle">Carregando aulas</h1>
+          </div>
+          <div class="stats">
+            <span id="lessonCount">0 aulas</span>
+            <span id="progressText">0% visto</span>
+          </div>
+        </section>
+
+        <section class="progress-panel">
+          <div class="progress-copy">
+            <strong id="progressTitle">Comece sua trilha</strong>
+            <span id="progressDetail">Seu avanço aparece conforme você assiste.</span>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <span id="courseProgressBar"></span>
+          </div>
+          <div id="nextUpText" class="next-up">Próxima aula aparece aqui.</div>
+        </section>
+
+        <section id="importPanel" class="import-panel" hidden>
+          <div class="panel-header import-header">
+            <div>
+              <p class="eyebrow">Importação</p>
+              <h2>Canal do Telegram</h2>
+            </div>
+            <div class="import-actions">
+              <button id="saveImportConfig" class="secondary-button" type="button">Salvar</button>
+              <button id="startImport" class="done-button" type="button">Importar agora</button>
+            </div>
+          </div>
+
+          <form id="importForm" class="import-form">
+            <label>
+              <span>URL do canal</span>
+              <input id="importChannel" name="channel" type="url" placeholder="https://t.me/+codigo" />
+            </label>
+            <label>
+              <span>ID/pasta do curso</span>
+              <input id="importCourseId" name="courseId" type="text" placeholder="auto-hipnose-kraisch" />
+            </label>
+            <label>
+              <span>Nome do curso</span>
+              <input id="importCourseTitle" name="courseTitle" type="text" placeholder="Nome que aparece na plataforma" />
+            </label>
+            <label>
+              <span>Ordem</span>
+              <select id="importOrder" name="order">
+                <option value="tag">Por #F01, #F02...</option>
+                <option value="oldest">Mais antigas primeiro</option>
+                <option value="newest">Mais recentes primeiro</option>
+              </select>
+            </label>
+            <label>
+              <span>Armazenamento</span>
+              <select id="storageMode" name="storageMode">
+                <option value="local">Local</option>
+                <option value="drive">Google Drive</option>
+                <option value="both">Local + Drive</option>
+              </select>
+            </label>
+            <label>
+              <span>Extensões de materiais</span>
+              <input id="allowedExtensions" name="allowedExtensions" type="text" placeholder=".pdf,.rar,.docx,.zip" />
+            </label>
+            <label>
+              <span>Mensagens analisadas</span>
+              <input id="maxMessages" name="maxMessages" type="number" min="1" step="1" />
+            </label>
+            <label>
+              <span>Downloads paralelos</span>
+              <input id="downloadConcurrency" name="downloadConcurrency" type="number" min="1" max="8" step="1" />
+            </label>
+            <div class="toggle-row">
+              <label><input id="includeVideos" name="includeVideos" type="checkbox" /> Vídeos</label>
+              <label><input id="includeMaterials" name="includeMaterials" type="checkbox" /> Materiais</label>
+              <label><input id="driveMakePublic" name="driveMakePublic" type="checkbox" /> Links públicos no Drive</label>
+            </div>
+          </form>
+
+          <div class="drive-actions">
+            <button id="connectDrive" class="secondary-button" type="button">Conectar Google Drive</button>
+            <span id="driveStatus">Drive não verificado.</span>
+          </div>
+
+          <div id="importStatus" class="import-status">Configuração pronta.</div>
+        </section>
+
+        <section class="player-layout">
+          <div class="player-panel">
+            <video id="videoPlayer" playsinline preload="metadata"></video>
+            <iframe id="drivePlayer" class="drive-player" title="Player do Google Drive" allow="autoplay; fullscreen" allowfullscreen hidden></iframe>
+            <div class="custom-player" id="customPlayer">
+              <div class="seek-row">
+                <span id="currentTime">00:00</span>
+                <input id="seekBar" type="range" min="0" max="1000" value="0" step="1" aria-label="Posição do vídeo" />
+                <span id="durationTime">00:00</span>
+              </div>
+              <div class="player-controls">
+                <button id="playPause" class="secondary-button" type="button">Play</button>
+                <button id="rewind10" class="secondary-button" type="button">-10s</button>
+                <button id="forward10" class="secondary-button" type="button">+10s</button>
+                <button id="nextLesson" class="secondary-button" type="button">Próxima</button>
+                <button id="fullscreenButton" class="secondary-button" type="button">Tela cheia</button>
+                <label class="speed-control">
+                  <span>Velocidade</span>
+                  <select id="playbackRate">
+                    <option value="0.75">0.75x</option>
+                    <option value="1">1x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="1.75">1.75x</option>
+                    <option value="2">2x</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="lesson-meta">
+              <div>
+                <p id="lessonKicker" class="eyebrow">Aula atual</p>
+                <h2 id="lessonTitle">Selecione uma aula</h2>
+              </div>
+              <div class="lesson-actions">
+                <button id="toggleDone" class="done-button" type="button">Marcar como vista</button>
+              </div>
+            </div>
+            <p id="lessonDescription" class="description"></p>
+            <div id="materialLinks" class="material-links"></div>
+          </div>
+
+          <section class="lessons-panel">
+            <div class="panel-header">
+              <h2>Aulas</h2>
+              <select id="filterSelect" aria-label="Filtro de aulas">
+                <option value="all">Todas</option>
+                <option value="pending">Pendentes</option>
+                <option value="done">Vistas</option>
+              </select>
+            </div>
+            <div id="lessonList" class="lesson-list"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
