@@ -12,6 +12,11 @@ function run(command, args, options = {}) {
     ...options
   });
 
+  if (result.error) {
+    console.error(result.error.message);
+    process.exit(1);
+  }
+
   if (result.status !== 0) {
     process.exit(result.status || 1);
   }
@@ -50,6 +55,10 @@ if (shortStatus) {
 
 git(["push", "-u", "origin", branch]);
 
-run("npx.cmd", ["vercel", "--prod", "--yes", "--scope", "joaos-projects-b385729c"]);
+if (process.platform === "win32") {
+  run("cmd.exe", ["/d", "/s", "/c", "npx.cmd vercel --prod --yes --scope joaos-projects-b385729c"]);
+} else {
+  run("npx", ["vercel", "--prod", "--yes", "--scope", "joaos-projects-b385729c"]);
+}
 
 console.log("\nPublicado no GitHub e na Vercel.");
